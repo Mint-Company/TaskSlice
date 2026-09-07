@@ -1,8 +1,9 @@
+from datetime import date, timedelta
 import flet as ft
 from app.database import db
 
 
-class GeneralTab(ft.Column):
+class TomorrowTab(ft.Column):
     def __init__(self, c_page):
         super().__init__()
         self.main_page = c_page
@@ -14,7 +15,7 @@ class GeneralTab(ft.Column):
 
         # Элементы шапки
         self.label_myday = ft.Text(
-            value="Все задачи",
+            value="Удачи Завтра!",
             color="blue",
             size=30,
             weight="bold",
@@ -31,14 +32,20 @@ class GeneralTab(ft.Column):
         self.input_search = ft.TextField(
             label="Поиск", hint_text="Найти задачу...", expand=True
         )
-        self.input_search.on_submit = lambda e: self.search_task()
+
+        self.button_search = ft.IconButton(
+                    icon=ft.Icons.SEARCH,
+                    icon_color="#1D1D1F",
+                    bgcolor="#d2e1fc",
+                    on_click=lambda e: self.search_task(),
+                )
 
         # Ввод параметров задачи
         self.input_text = ft.TextField(
-            label="Задача", hint_text="Что нужно сделать?", expand=True
+            label="Введите задачу...", hint_text="Что сделать завтра?", expand=True
         )
         self.input_time = ft.TextField(
-            label="Время / Дата", hint_text="ГГГГ-ММ-ДД ЧЧ:ММ", expand=True
+            label="Время", hint_text="ЧЧ.ММ", expand=True
         )
 
         self.priority = ft.Dropdown(
@@ -59,23 +66,43 @@ class GeneralTab(ft.Column):
         # Список задач
         self.list_task = ft.ListView(spacing=10, expand=True)
 
+        # Контейнер шапки
+        header_container = ft.Container(
+            content=ft.Row(
+                controls=[
+                    self.label_myday,
+                    self.label1,
+                    self.input_search,
+                    self.button_search,
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            bgcolor="#f0f0f0",
+            border_radius=10
+        )
+
         # Макет интерфейса
-        self.controls = [
-            ft.Container(
-                content=ft.Column(
-                    [
-                        self.label_myday,
-                        self.input_search,
-                        self.input_text,
-                        ft.Row([self.input_time, self.priority]),
-                        self.bttn_add_task,
-                        ft.Divider(),
-                        self.list_task,
-                    ],
-                    scroll=ft.ScrollMode.ADAPTIVE,
-                )
+        layout_for_add = ft.Container(
+            content=ft.Column(
+                controls=[
+                    self.input_text,
+                    ft.Row([self.input_time, self.priority]),
+                    self.bttn_add_task,
+                    ft.Divider(),
+                    self.list_task,
+                ],
+                scroll=ft.ScrollMode.ADAPTIVE,
             )
-        ]
+        )
+
+        # Главная компоновка
+        self.controls = [
+            header_container,
+            layout_for_add,
+            ft.Divider(),
+            self.list_task,
+                ]
 
     def did_mount(self):
         self.load_tasks()
@@ -86,32 +113,47 @@ class GeneralTab(ft.Column):
             self.msg("Вы заполнили не все поля!")
             return
 
+        # Получаем данные из полей ввода
         task_time = (
             self.input_time.value.strip() if self.input_time.value else ""
         )
         priority = self.priority.value if self.priority.value else "Средний"
 
+        # Если время указано, можно объединить его с датой завтрашнего дня или записать в поле date
+        tomorrow_date = (date.today() + timedelta(days=1)).isoformat()
+        final_date_str = f"{tomorrow_date} {task_time}".strip()
+
+        # Сохраняем в таблицу "tomorrow_tasks"
         self.database.add_into_tasks(
-            "general_tasks", title, task_time, priority
+            "tomorrow_tasks", title, final_date_str, priority
         )
 
+        # Очищаем поля ввода
         self.input_text.value = ""
         self.input_time.value = ""
         self.priority.value = None
 
+        # Перерисовываем список задач из базы
+        self.load_tasks()
+        
         if self.page:
             self.main_page.update()
 
-        self.load_tasks()
+        
 
     def load_tasks(self):
-        """Загружает задачи из базы и выводит на экран"""
+        """Загружает задачи из базы (для завтрашнего дня) и выводит на экран"""
         self.list_task.controls.clear()
 
-        tasks_from_db = self.database.get_all_tasks("general_tasks")
+        # Рассчитываем завтрашнюю дату
+        tomorrow_date = (date.today() + timedelta(days=1)).isoformat()
+
+        # Запрашиваем отсортированные задачи на завтра
+        tasks_from_db = self.database.sort_tasks(tomorrow_date)
 
         if tasks_from_db:
             for task in tasks_from_db:
+                # Кортеж: (id, description, priority, date)
                 task_id, desc, priority, task_date = task
 
                 new_tile = ft.ListTile(
@@ -127,8 +169,8 @@ class GeneralTab(ft.Column):
             self.list_task.update()
 
     def delete_task(self, task_id):
-        """Удаляет задачу из таблицы general_tasks и обновляет экран"""
-        self.database.delete_task(task_id, "general_tasks")
+        """Удаляет задачу из таблицы tomorrow_tasks и обновляет экран"""
+        self.database.delete_task(task_id, "tomorrow_tasks")
 
         search_text = (
             self.input_search.value.strip() if self.input_search.value else ""
@@ -153,7 +195,7 @@ class GeneralTab(ft.Column):
             self.list_task.controls.clear()
             try:
                 list_of_search_tasks = self.database.search_task(
-                    text, "general_tasks"
+                    text, "tomorrow_tasks"
                 )
 
                 if not list_of_search_tasks:

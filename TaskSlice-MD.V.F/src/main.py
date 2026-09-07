@@ -1,46 +1,60 @@
 import flet as ft
-# Импортируем ТВОИ классы из ТВОИХ файлов
 from views.general_tasks_tab import GeneralTab 
-from views.today_tasks_tab import TodayTab  
-from views.about_us import AboutUsTab
+from views.today_tasks_tab import TodayTab 
+from views.tomorrow_tasks_tab import TomorrowTab 
+from views.stats_tab import StatsTab
+
 
 def main(page: ft.Page):
-    page.title = "TaskSlice"
+    page.title = "TaskSlice MOBILE.V.P-0.65.2"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 500
-    page.window_height = 700
-    
+    page.window.width = 420
+    page.window.height = 700
+
     # Область, где будут отображаться вкладки
     content_area = ft.Container(expand=True)
 
+    # Инициализация всех вкладок
+    today_tab = TodayTab(page)
+    tomorrow_tab = TomorrowTab(page)
+    general_tab = GeneralTab(page)
+    static_tab = StatsTab(page)
+
+    # Функция переключения вкладок
     def change_tab(e):
-        # Очищаем и ставим нужный класс
-        if e.control.data == 0:
-            content_area.content = TodayTab(page)
-        elif e.control.data == 1:
-            content_area.content = GeneralTab(page)
-        elif e.control.data == 2:
-            content_area.content = AboutUsTab()
+        index = e.control.selected_index
+        if index == 0:
+            content_area.content = today_tab
+        elif index == 1:
+            content_area.content = tomorrow_tab
+        elif index == 2:
+            content_area.content = general_tab
+        elif index == 3:
+            content_area.content = static_tab
         
         page.update()
 
+    # Нижняя навигация для смартфона
+    page.navigation_bar = ft.NavigationBar(
+        selected_index=0,
+        on_change=change_tab,
+        destinations=[
+            ft.NavigationBarDestination(icon=ft.Icons.TODAY, label="Сегодня"),
+            ft.NavigationBarDestination(icon=ft.Icons.EVENT_REPEAT, label="На завтра"),
+            ft.NavigationBarDestination(icon=ft.Icons.TASK_ALT, label="Основные"),
+            ft.NavigationBarDestination(icon=ft.Icons.BAR_CHART, label="Статистика"),
+        ],
+    )
 
-    # Кнопки навигации
-    tab_buttons = ft.Row([
-        ft.TextButton("Мой день", on_click=change_tab, data=0),
-        ft.TextButton("Основные задачи", on_click=change_tab, data=1),
-        ft.TextButton("О нас", on_click=change_tab, data=2),
-    ], alignment=ft.MainAxisAlignment.CENTER)
-
-    # Добавляем всё на страницу
-    page.add(tab_buttons, ft.Divider(), content_area)
+    # Добавляем центральную область на страницу
+    page.add(content_area)
 
     # Показываем первую вкладку сразу при запуске
-    content_area.content = TodayTab(page)
+    content_area.content = today_tab
     page.update()
 
-# ЗАПУСК ПРИЛОЖЕНИЯ
+
 if __name__ == "__main__":
     ft.app(target=main)
 
-
+    

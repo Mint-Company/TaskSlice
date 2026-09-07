@@ -1,0 +1,9 @@
+[project]
+name = "taskslice_mobile"
+version = "0.65.2"
+
+[tool.flet]
+product = "TaskSlice MOBILE.V.P"
+
+[tool.flet.android]
+build_number = 1
